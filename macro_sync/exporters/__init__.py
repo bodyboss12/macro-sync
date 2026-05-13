@@ -12,6 +12,12 @@ from macro_sync.exporters.csv_exporter import (
     summaries_to_csv,
     summaries_to_csv_str,
 )
+from macro_sync.exporters.tsv_exporter import (
+    entries_to_tsv,
+    entries_to_tsv_str,
+    summaries_to_tsv,
+    summaries_to_tsv_str,
+)
 from macro_sync.exporters.markdown_exporter import (
     entries_to_markdown,
     entries_to_markdown_str,
@@ -64,6 +70,8 @@ __all__ = [
     "summaries_to_json", "summaries_to_json_str",
     "entries_to_csv", "entries_to_csv_str",
     "summaries_to_csv", "summaries_to_csv_str",
+    "entries_to_tsv", "entries_to_tsv_str",
+    "summaries_to_tsv", "summaries_to_tsv_str",
     "entries_to_markdown", "entries_to_markdown_str",
     "summaries_to_markdown", "summaries_to_markdown_str",
     "entries_to_excel_bytes", "entries_to_workbook",
