@@ -1,120 +1,114 @@
-"""CLI entry point for macro-sync."""
+"""Command-line interface for macro-sync."""
+from __future__ import annotations
 
 import argparse
 import sys
-from datetime import date
+from pathlib import Path
 from typing import List
 
-from macro_sync.schema import NutritionEntry, DailySummary
 from macro_sync.aggregator import aggregate
+from macro_sync.parsers import cronometer, myfitnesspal
 from macro_sync import exporters
+
+FORMATS = [
+    "json", "csv", "tsv", "markdown", "html", "xml",
+    "yaml", "toml", "excel", "sqlite", "parquet", "msgpack", "pdf",
+]
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    p = argparse.ArgumentParser(
         prog="macro-sync",
         description="Aggregate nutrition data from MyFitnessPal and Cronometer.",
     )
-    parser.add_argument("--mfp", metavar="FILE", help="MyFitnessPal CSV export file")
-    parser.add_argument("--crono", metavar="FILE", help="Cronometer CSV export file")
-    parser.add_argument(
-        "--format",
-        choices=["table", "json", "csv", "markdown", "excel", "sqlite"],
-        default="table",
-        help="Output format (default: table)",
+    p.add_argument("--mfp", metavar="FILE", help="MyFitnessPal CSV export")
+    p.add_argument("--crono", metavar="FILE", help="Cronometer CSV export")
+    p.add_argument(
+        "--format", choices=FORMATS, default="json",
+        help="Output format (default: json)",
     )
-    parser.add_argument(
-        "--output", metavar="FILE", help="Write output to file instead of stdout"
+    p.add_argument("--output", metavar="FILE", help="Write output to FILE instead of stdout")
+    p.add_argument(
+        "--summaries", action="store_true",
+        help="Export daily summaries instead of individual entries",
     )
-    parser.add_argument(
-        "--entries",
-        action="store_true",
-        help="Export raw entries instead of daily summaries",
-    )
-    return parser
+    return p
 
 
-def render_table(summaries: List[DailySummary]) -> str:
-    header = f"{'Date':<12} {'Calories':>9} {'Protein':>8} {'Carbs':>8} {'Fat':>8} {'Entries':>8}"
-    sep = "-" * len(header)
-    rows = [
-        f"{str(s.date):<12} {s.total_calories:>9.1f} {s.total_protein:>8.1f} "
-        f"{s.total_carbs:>8.1f} {s.total_fat:>8.1f} {s.entry_count:>8}"
-        for s in summaries
-    ]
-    return "\n".join([header, sep] + rows)
+def render_table(entries, summaries_mode: bool, fmt: str) -> bytes | str:
+    if summaries_mode:
+        daily = aggregate(entries)
+        fn_map = {
+            "json": exporters.summaries_to_json_str,
+            "csv": exporters.summaries_to_csv_str,
+            "tsv": exporters.summaries_to_tsv_str,
+            "markdown": exporters.summaries_to_markdown_str,
+            "html": exporters.summaries_to_html_str,
+            "xml": exporters.summaries_to_xml_str,
+            "yaml": exporters.summaries_to_yaml_str,
+            "toml": exporters.summaries_to_toml_str,
+            "excel": exporters.summaries_to_excel_bytes,
+            "sqlite": exporters.summaries_to_sqlite_bytes,
+            "parquet": exporters.summaries_to_parquet_bytes,
+            "msgpack": exporters.summaries_to_msgpack_bytes,
+            "pdf": exporters.summaries_to_pdf_bytes,
+        }
+        return fn_map[fmt](daily)
+    else:
+        fn_map = {
+            "json": exporters.entries_to_json_str,
+            "csv": exporters.entries_to_csv_str,
+            "tsv": exporters.entries_to_tsv_str,
+            "markdown": exporters.entries_to_markdown_str,
+            "html": exporters.entries_to_html_str,
+            "xml": exporters.entries_to_xml_str,
+            "yaml": exporters.entries_to_yaml_str,
+            "toml": exporters.entries_to_toml_str,
+            "excel": exporters.entries_to_excel_bytes,
+            "sqlite": exporters.entries_to_sqlite_bytes,
+            "parquet": exporters.entries_to_parquet_bytes,
+            "msgpack": exporters.entries_to_msgpack_bytes,
+            "pdf": exporters.entries_to_pdf_bytes,
+        }
+        return fn_map[fmt](entries)
 
 
-def main(argv=None) -> int:
+def _write_text(content: str, output: str | None) -> None:
+    if output:
+        Path(output).write_text(content, encoding="utf-8")
+    else:
+        sys.stdout.write(content)
+
+
+def _write_binary(content: bytes, output: str | None) -> None:
+    if output:
+        Path(output).write_bytes(content)
+    else:
+        sys.stdout.buffer.write(content)
+
+
+def main(argv: List[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    entries: List[NutritionEntry] = []
-
+    entries = []
     if args.mfp:
-        from macro_sync.parsers.myfitnesspal import parse_csv as mfp_parse
-        with open(args.mfp, newline="", encoding="utf-8") as f:
-            entries.extend(mfp_parse(f))
-
+        with open(args.mfp, newline="", encoding="utf-8") as fh:
+            entries.extend(myfitnesspal.parse_csv(fh))
     if args.crono:
-        from macro_sync.parsers.cronometer import parse_csv as crono_parse
-        with open(args.crono, newline="", encoding="utf-8") as f:
-            entries.extend(crono_parse(f))
+        with open(args.crono, newline="", encoding="utf-8") as fh:
+            entries.extend(cronometer.parse_csv(fh))
 
     if not entries:
-        print("No input files provided. Use --mfp and/or --crono.", file=sys.stderr)
-        return 1
+        parser.error("Provide at least one of --mfp or --crono.")
 
-    summaries = aggregate(entries)
-    binary_formats = {"excel", "sqlite"}
-    fmt = args.format
-
-    if fmt == "table":
-        output = render_table(summaries)
-        if args.output:
-            with open(args.output, "w", encoding="utf-8") as f:
-                f.write(output)
-        else:
-            print(output)
-    elif fmt == "json":
-        fn = exporters.entries_to_json_str if args.entries else exporters.summaries_to_json_str
-        data = fn(entries if args.entries else summaries)
-        _write_text(data, args.output)
-    elif fmt == "csv":
-        fn = exporters.entries_to_csv_str if args.entries else exporters.summaries_to_csv_str
-        data = fn(entries if args.entries else summaries)
-        _write_text(data, args.output)
-    elif fmt == "markdown":
-        fn = exporters.entries_to_markdown_str if args.entries else exporters.summaries_to_markdown_str
-        data = fn(entries if args.entries else summaries)
-        _write_text(data, args.output)
-    elif fmt == "excel":
-        fn = exporters.entries_to_excel_bytes if args.entries else exporters.summaries_to_excel_bytes
-        data = fn(entries if args.entries else summaries)
-        _write_binary(data, args.output)
-    elif fmt == "sqlite":
-        fn = exporters.entries_to_sqlite_bytes if args.entries else exporters.summaries_to_sqlite_bytes
-        data = fn(entries if args.entries else summaries)
-        _write_binary(data, args.output)
-
-    return 0
-
-
-def _write_text(data: str, path) -> None:
-    if path:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(data)
+    result = render_table(entries, args.summaries, args.format)
+    binary_formats = {"excel", "sqlite", "parquet", "msgpack", "pdf"}
+    if args.format in binary_formats:
+        _write_binary(result, args.output)
     else:
-        print(data)
-
-
-def _write_binary(data: bytes, path) -> None:
-    if path:
-        with open(path, "wb") as f:
-            f.write(data)
-    else:
-        sys.stdout.buffer.write(data)
+        _write_text(result, args.output)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
