@@ -1,5 +1,4 @@
-"""Exporters package — re-exports all public exporter functions."""
-
+"""Exporters package — re-exports all public serialization helpers."""
 from macro_sync.exporters.json_exporter import (
     entries_to_json_str,
     summaries_to_json_str,
@@ -84,6 +83,12 @@ from macro_sync.exporters.jsonl_exporter import (
     entries_to_jsonl,
     summaries_to_jsonl,
 )
+from macro_sync.exporters.arrow_exporter import (
+    entries_to_arrow_bytes,
+    summaries_to_arrow_bytes,
+    entries_to_arrow_table,
+    summaries_to_arrow_table,
+)
 
 __all__ = [
     "entries_to_json_str", "summaries_to_json_str", "entries_to_json", "summaries_to_json",
@@ -102,4 +107,6 @@ __all__ = [
     "entries_to_ndjson_str", "summaries_to_ndjson_str", "entries_to_ndjson", "summaries_to_ndjson",
     "entries_to_ods_bytes", "summaries_to_ods_bytes",
     "entries_to_jsonl_str", "summaries_to_jsonl_str", "entries_to_jsonl", "summaries_to_jsonl",
+    "entries_to_arrow_bytes", "summaries_to_arrow_bytes",
+    "entries_to_arrow_table", "summaries_to_arrow_table",
 ]
