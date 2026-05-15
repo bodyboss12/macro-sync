@@ -1,167 +1,164 @@
-"""Export dispatcher — routes to the correct exporter based on format string."""
+"""Export dispatcher — routes (data, format) pairs to the correct exporter."""
 from __future__ import annotations
 
-from typing import List, Union
+from typing import Iterable, Union
 
 from macro_sync.schema import DailySummary, NutritionEntry
 
-Text = str
-Binary = bytes
-Result = Union[Text, Binary]
+Data = Union[Iterable[NutritionEntry], Iterable[DailySummary]]
 
-_TEXT_FORMATS = {
+# Text formats
+TEXT_FORMATS = {
     "json", "csv", "markdown", "md", "yaml", "toml", "tsv",
-    "html", "xml", "latex", "ndjson", "jsonl",
+    "html", "xml", "ndjson", "jsonl", "latex", "geojson", "jsonlines",
 }
 
-_BINARY_FORMATS = {
-    "excel", "xlsx", "sqlite", "parquet", "arrow", "feather",
-    "msgpack", "pdf", "ods", "netcdf", "hdf5", "protobuf",
-    "cbor", "avro", "orc",
+# Binary formats
+BINARY_FORMATS = {
+    "xlsx", "sqlite", "parquet", "msgpack", "pdf", "ods",
+    "netcdf", "arrow", "feather", "hdf5", "protobuf", "cbor",
+    "avro", "orc", "pivot_xlsx", "jsonlines_gz",
 }
 
 
 def export(
-    data: Union[List[NutritionEntry], List[DailySummary]],
+    data: Data,
     fmt: str,
+    *,
     mode: str = "entries",
-) -> Result:
-    """Export *data* to the given format.
+) -> Union[str, bytes]:
+    """Export *data* to *fmt*.
 
     Parameters
     ----------
     data:
-        A list of NutritionEntry or DailySummary objects.
+        An iterable of :class:`NutritionEntry` or :class:`DailySummary`.
     fmt:
-        Target format identifier (e.g. ``"json"``, ``"csv"``, ``"parquet"``).
+        Target format string (e.g. ``"json"``, ``"csv"``, ``"parquet"``).
     mode:
-        ``"entries"`` or ``"summaries"``.
+        ``"entries"`` (default) or ``"summaries"``.
     """
-    fmt = fmt.lower().strip()
+    items = list(data)
+    fmt = fmt.lower()
 
-    if fmt in ("json",):
+    if fmt == "json":
         from macro_sync.exporters.json_exporter import entries_to_json_str, summaries_to_json_str
-        fn = entries_to_json_str if mode == "entries" else summaries_to_json_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_json_str(items) if mode == "entries" else summaries_to_json_str(items)
 
-    if fmt in ("csv",):
+    if fmt == "csv":
         from macro_sync.exporters.csv_exporter import entries_to_csv_str, summaries_to_csv_str
-        fn = entries_to_csv_str if mode == "entries" else summaries_to_csv_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_csv_str(items) if mode == "entries" else summaries_to_csv_str(items)
 
     if fmt in ("markdown", "md"):
         from macro_sync.exporters.markdown_exporter import entries_to_markdown_str, summaries_to_markdown_str
-        fn = entries_to_markdown_str if mode == "entries" else summaries_to_markdown_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_markdown_str(items) if mode == "entries" else summaries_to_markdown_str(items)
 
-    if fmt in ("excel", "xlsx"):
-        from macro_sync.exporters.excel_exporter import entries_to_excel_bytes, summaries_to_excel_bytes
-        fn = entries_to_excel_bytes if mode == "entries" else summaries_to_excel_bytes
-        return fn(data)  # type: ignore[arg-type]
-
-    if fmt in ("sqlite",):
-        from macro_sync.exporters.sqlite_exporter import entries_to_sqlite_bytes, summaries_to_sqlite_bytes
-        fn = entries_to_sqlite_bytes if mode == "entries" else summaries_to_sqlite_bytes
-        return fn(data)  # type: ignore[arg-type]
-
-    if fmt in ("parquet",):
-        from macro_sync.exporters.parquet_exporter import entries_to_parquet_bytes, summaries_to_parquet_bytes
-        fn = entries_to_parquet_bytes if mode == "entries" else summaries_to_parquet_bytes
-        return fn(data)  # type: ignore[arg-type]
-
-    if fmt in ("yaml",):
+    if fmt == "yaml":
         from macro_sync.exporters.yaml_exporter import entries_to_yaml_str, summaries_to_yaml_str
-        fn = entries_to_yaml_str if mode == "entries" else summaries_to_yaml_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_yaml_str(items) if mode == "entries" else summaries_to_yaml_str(items)
 
-    if fmt in ("toml",):
+    if fmt == "toml":
         from macro_sync.exporters.toml_exporter import entries_to_toml_str, summaries_to_toml_str
-        fn = entries_to_toml_str if mode == "entries" else summaries_to_toml_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_toml_str(items) if mode == "entries" else summaries_to_toml_str(items)
 
-    if fmt in ("tsv",):
+    if fmt == "tsv":
         from macro_sync.exporters.tsv_exporter import entries_to_tsv_str, summaries_to_tsv_str
-        fn = entries_to_tsv_str if mode == "entries" else summaries_to_tsv_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_tsv_str(items) if mode == "entries" else summaries_to_tsv_str(items)
 
-    if fmt in ("html",):
+    if fmt == "html":
         from macro_sync.exporters.html_exporter import entries_to_html_str, summaries_to_html_str
-        fn = entries_to_html_str if mode == "entries" else summaries_to_html_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_html_str(items) if mode == "entries" else summaries_to_html_str(items)
 
-    if fmt in ("xml",):
+    if fmt == "xml":
         from macro_sync.exporters.xml_exporter import entries_to_xml_str, summaries_to_xml_str
-        fn = entries_to_xml_str if mode == "entries" else summaries_to_xml_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_xml_str(items) if mode == "entries" else summaries_to_xml_str(items)
 
-    if fmt in ("latex",):
-        from macro_sync.exporters.latex_exporter import entries_to_latex_str, summaries_to_latex_str
-        fn = entries_to_latex_str if mode == "entries" else summaries_to_latex_str
-        return fn(data)  # type: ignore[arg-type]
-
-    if fmt in ("msgpack",):
-        from macro_sync.exporters.msgpack_exporter import entries_to_msgpack_bytes, summaries_to_msgpack_bytes
-        fn = entries_to_msgpack_bytes if mode == "entries" else summaries_to_msgpack_bytes
-        return fn(data)  # type: ignore[arg-type]
-
-    if fmt in ("pdf",):
-        from macro_sync.exporters.pdf_exporter import entries_to_pdf_bytes, summaries_to_pdf_bytes
-        fn = entries_to_pdf_bytes if mode == "entries" else summaries_to_pdf_bytes
-        return fn(data)  # type: ignore[arg-type]
-
-    if fmt in ("ndjson",):
+    if fmt == "ndjson":
         from macro_sync.exporters.ndjson_exporter import entries_to_ndjson_str, summaries_to_ndjson_str
-        fn = entries_to_ndjson_str if mode == "entries" else summaries_to_ndjson_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_ndjson_str(items) if mode == "entries" else summaries_to_ndjson_str(items)
 
-    if fmt in ("ods",):
-        from macro_sync.exporters.ods_exporter import entries_to_ods_bytes, summaries_to_ods_bytes
-        fn = entries_to_ods_bytes if mode == "entries" else summaries_to_ods_bytes
-        return fn(data)  # type: ignore[arg-type]
-
-    if fmt in ("jsonl",):
+    if fmt == "jsonl":
         from macro_sync.exporters.jsonl_exporter import entries_to_jsonl_str, summaries_to_jsonl_str
-        fn = entries_to_jsonl_str if mode == "entries" else summaries_to_jsonl_str
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_jsonl_str(items) if mode == "entries" else summaries_to_jsonl_str(items)
 
-    if fmt in ("netcdf",):
+    if fmt == "jsonlines":
+        from macro_sync.exporters.jsonlines_exporter import entries_to_jsonlines_str, summaries_to_jsonlines_str
+        return entries_to_jsonlines_str(items) if mode == "entries" else summaries_to_jsonlines_str(items)
+
+    if fmt == "latex":
+        from macro_sync.exporters.latex_exporter import entries_to_latex_str, summaries_to_latex_str
+        return entries_to_latex_str(items) if mode == "entries" else summaries_to_latex_str(items)
+
+    if fmt == "geojson":
+        from macro_sync.exporters.geojson_exporter import entries_to_geojson_str, summaries_to_geojson_str
+        return entries_to_geojson_str(items) if mode == "entries" else summaries_to_geojson_str(items)
+
+    if fmt == "xlsx":
+        from macro_sync.exporters.excel_exporter import entries_to_excel_bytes, summaries_to_excel_bytes
+        return entries_to_excel_bytes(items) if mode == "entries" else summaries_to_excel_bytes(items)
+
+    if fmt == "sqlite":
+        from macro_sync.exporters.sqlite_exporter import entries_to_sqlite_bytes, summaries_to_sqlite_bytes
+        return entries_to_sqlite_bytes(items) if mode == "entries" else summaries_to_sqlite_bytes(items)
+
+    if fmt == "parquet":
+        from macro_sync.exporters.parquet_exporter import entries_to_parquet_bytes, summaries_to_parquet_bytes
+        return entries_to_parquet_bytes(items) if mode == "entries" else summaries_to_parquet_bytes(items)
+
+    if fmt == "msgpack":
+        from macro_sync.exporters.msgpack_exporter import entries_to_msgpack_bytes, summaries_to_msgpack_bytes
+        return entries_to_msgpack_bytes(items) if mode == "entries" else summaries_to_msgpack_bytes(items)
+
+    if fmt == "pdf":
+        from macro_sync.exporters.pdf_exporter import entries_to_pdf_bytes, summaries_to_pdf_bytes
+        return entries_to_pdf_bytes(items) if mode == "entries" else summaries_to_pdf_bytes(items)
+
+    if fmt == "ods":
+        from macro_sync.exporters.ods_exporter import entries_to_ods_bytes, summaries_to_ods_bytes
+        return entries_to_ods_bytes(items) if mode == "entries" else summaries_to_ods_bytes(items)
+
+    if fmt == "netcdf":
         from macro_sync.exporters.netcdf_exporter import entries_to_netcdf_bytes, summaries_to_netcdf_bytes
-        fn = entries_to_netcdf_bytes if mode == "entries" else summaries_to_netcdf_bytes
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_netcdf_bytes(items) if mode == "entries" else summaries_to_netcdf_bytes(items)
 
-    if fmt in ("arrow",):
+    if fmt == "arrow":
         from macro_sync.exporters.arrow_exporter import entries_to_arrow_bytes, summaries_to_arrow_bytes
-        fn = entries_to_arrow_bytes if mode == "entries" else summaries_to_arrow_bytes
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_arrow_bytes(items) if mode == "entries" else summaries_to_arrow_bytes(items)
 
-    if fmt in ("feather",):
+    if fmt == "feather":
         from macro_sync.exporters.feather_exporter import entries_to_feather_bytes, summaries_to_feather_bytes
-        fn = entries_to_feather_bytes if mode == "entries" else summaries_to_feather_bytes
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_feather_bytes(items) if mode == "entries" else summaries_to_feather_bytes(items)
 
-    if fmt in ("hdf5",):
+    if fmt == "hdf5":
         from macro_sync.exporters.hdf5_exporter import entries_to_hdf5_bytes, summaries_to_hdf5_bytes
-        fn = entries_to_hdf5_bytes if mode == "entries" else summaries_to_hdf5_bytes
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_hdf5_bytes(items) if mode == "entries" else summaries_to_hdf5_bytes(items)
 
-    if fmt in ("protobuf",):
+    if fmt == "protobuf":
         from macro_sync.exporters.protobuf_exporter import entries_to_protobuf_bytes, summaries_to_protobuf_bytes
-        fn = entries_to_protobuf_bytes if mode == "entries" else summaries_to_protobuf_bytes
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_protobuf_bytes(items) if mode == "entries" else summaries_to_protobuf_bytes(items)
 
-    if fmt in ("cbor",):
+    if fmt == "cbor":
         from macro_sync.exporters.cbor_exporter import entries_to_cbor_bytes, summaries_to_cbor_bytes
-        fn = entries_to_cbor_bytes if mode == "entries" else summaries_to_cbor_bytes
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_cbor_bytes(items) if mode == "entries" else summaries_to_cbor_bytes(items)
 
-    if fmt in ("avro",):
+    if fmt == "avro":
         from macro_sync.exporters.avro_exporter import entries_to_avro_bytes, summaries_to_avro_bytes
-        fn = entries_to_avro_bytes if mode == "entries" else summaries_to_avro_bytes
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_avro_bytes(items) if mode == "entries" else summaries_to_avro_bytes(items)
 
-    if fmt in ("orc",):
+    if fmt == "orc":
         from macro_sync.exporters.orc_exporter import entries_to_orc_bytes, summaries_to_orc_bytes
-        fn = entries_to_orc_bytes if mode == "entries" else summaries_to_orc_bytes
-        return fn(data)  # type: ignore[arg-type]
+        return entries_to_orc_bytes(items) if mode == "entries" else summaries_to_orc_bytes(items)
+
+    if fmt == "pivot_xlsx":
+        from macro_sync.exporters.excel_pivot_exporter import entries_to_pivot_excel_bytes
+        return entries_to_pivot_excel_bytes(items)
+
+    if fmt == "jsonlines_gz":
+        from macro_sync.exporters.jsonlines_exporter import entries_to_jsonlines_bytes, summaries_to_jsonlines_bytes
+        return (
+            entries_to_jsonlines_bytes(items, compress=True)
+            if mode == "entries"
+            else summaries_to_jsonlines_bytes(items, compress=True)
+        )
 
     raise ValueError(f"Unsupported export format: {fmt!r}")
