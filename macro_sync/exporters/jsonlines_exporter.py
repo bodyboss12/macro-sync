@@ -49,6 +49,14 @@ def _summary_to_dict(summary: DailySummary) -> dict:
     }
 
 
+def _compress_bytes(data: bytes) -> bytes:
+    """Gzip-compress *data* and return the compressed bytes."""
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode="wb") as gz:
+        gz.write(data)
+    return buf.getvalue()
+
+
 def entries_to_jsonlines_str(entries: Iterable[NutritionEntry]) -> str:
     """Return newline-delimited JSON string for *entries*."""
     lines = [json.dumps(_entry_to_dict(e)) for e in entries]
@@ -64,20 +72,10 @@ def summaries_to_jsonlines_str(summaries: Iterable[DailySummary]) -> str:
 def entries_to_jsonlines_bytes(entries: Iterable[NutritionEntry], *, compress: bool = False) -> bytes:
     """Return UTF-8 encoded JSON Lines bytes, optionally gzip-compressed."""
     raw = entries_to_jsonlines_str(entries).encode("utf-8")
-    if compress:
-        buf = io.BytesIO()
-        with gzip.GzipFile(fileobj=buf, mode="wb") as gz:
-            gz.write(raw)
-        return buf.getvalue()
-    return raw
+    return _compress_bytes(raw) if compress else raw
 
 
 def summaries_to_jsonlines_bytes(summaries: Iterable[DailySummary], *, compress: bool = False) -> bytes:
     """Return UTF-8 encoded JSON Lines bytes, optionally gzip-compressed."""
     raw = summaries_to_jsonlines_str(summaries).encode("utf-8")
-    if compress:
-        buf = io.BytesIO()
-        with gzip.GzipFile(fileobj=buf, mode="wb") as gz:
-            gz.write(raw)
-        return buf.getvalue()
-    return raw
+    return _compress_bytes(raw) if compress else raw
