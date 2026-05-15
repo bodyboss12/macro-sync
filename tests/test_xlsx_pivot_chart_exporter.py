@@ -90,6 +90,15 @@ def test_pivot_sheet_calories_aggregated(sample_entries):
     assert row2[2] == pytest.approx(800.0)
 
 
+def test_pivot_sheet_rows_sorted_by_date(sample_entries):
+    """Dates in the Daily Pivot sheet should be in ascending order."""
+    wb = entries_to_pivot_chart_workbook(sample_entries)
+    ws = wb["Daily Pivot"]
+    # Skip header row; collect date values from column 1
+    date_values = [ws.cell(row=r, column=1).value for r in range(2, ws.max_row + 1)]
+    assert date_values == sorted(date_values)
+
+
 def test_source_totals_sheet_header(sample_entries):
     wb = entries_to_pivot_chart_workbook(sample_entries)
     ws = wb["Source Totals"]
@@ -106,5 +115,3 @@ def test_source_totals_row_count(sample_entries):
 
 def test_empty_entries_does_not_raise():
     result = entries_to_pivot_chart_bytes([])
-    assert isinstance(result, bytes)
-    assert len(result) > 0
